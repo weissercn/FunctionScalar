@@ -166,7 +166,7 @@ class FunctionScaler:
 
     def fit_transform(self, data):
         self.fit(data)
-        return transform(data)
+        return self.transform(data)
 
     def invtransform(self, data):
         data = np.array(data)
