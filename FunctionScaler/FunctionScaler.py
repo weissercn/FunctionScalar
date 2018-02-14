@@ -52,7 +52,7 @@ def unique_mask(data):
             if duplicates_found:
                 if n_same %2==0: i_dupl_used =     n_same/2
                 else:            i_dupl_used = int(n_same/2) + np.random.choice(2)
-                print "i_dupl_used : ", i_dupl_used
+                #print "i_dupl_used : ", i_dupl_used
                 for n in range(n_same+1):
                     mask[i-n-1] =1
                 mask[i-i_dupl_used-1] = 0
@@ -129,7 +129,7 @@ class FunctionScaler:
                         d_next = np.inf
                         try: d_next = data[i+1]
                         except: pass
-                        print "test"
+                        #print "test"
                         if last != np.inf:
                             data_no_duplicates.append(0.999*data[i] + 0.001*data[i-1] )
                             y_no_duplicates.append(y[i])
