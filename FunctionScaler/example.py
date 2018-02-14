@@ -10,7 +10,8 @@ n_points = 100
 
 #fs = FunctionScaler("unif")  # calling the uniform function by name
 #fs = FunctionScaler("gauss") # calling the normal function by name 
-#fs = FunctionScaler(TransformedFunction_Gauss()) # calling the normal function by class
+#fs = FunctionScaler("gauss-11") # calling the normal function by name scaled such that it is mostly contained between -1 and 1
+#fs = FunctionScaler(TransformedFunction_Gauss(0,1)) # calling the normal function by class mean =0 sigma =1
 fs = FunctionScaler(np.array(range(1,1+n_points))/(1.+n_points) ) # calling the uniform function directly by inv_cdf value
 
 
@@ -97,4 +98,3 @@ if False:
 
 
 plt.show()
-

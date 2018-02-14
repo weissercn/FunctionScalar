@@ -19,15 +19,21 @@ class TransformedFunction_Uniform(TransformedFunction):
 
 class TransformedFunction_Gauss(TransformedFunction):
 
+    def __init__(self, mean=0, std_dev=1):
+        self.mean    = mean
+        self.std_dev = std_dev
+
     def inv_cdf(self, n_points=100):
         # ppf is the inverse of cdf as shown by
         # norm.cdf(norm.ppf(0.95)) = 0.95
         # scipy.stats.norm.ppf = scipy.special.ndtri
-        inv_cdf_points = norm.ppf( np.array(range(1,1+n_points))/(1.+n_points)  )
+        inv_cdf_points = norm.ppf( np.array(range(1,1+n_points))/(1.+n_points), self.mean, self.std_dev  )
         return inv_cdf_points
 
 def name_to_TransformedFunction(name):
     if name=="gauss" or name=="normal": return TransformedFunction_Gauss()
+    elif name=="gauss01" or name=="normal01": return TransformedFunction_Gauss(0.5,1./8.) #Gaussian between 0 and 1
+    elif name=="gauss-11" or name=="normal-11": return TransformedFunction_Gauss(0.,1./4.) #Gaussian between -1 and 1
     elif name=="unif" or name=="uniform": return TransformedFunction_Uniform()
 
 
