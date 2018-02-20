@@ -8,14 +8,14 @@ n_points = 100
 
 ### Testing different ways of initialising FunctionScaler
 
-#fs = FunctionScaler("unif")  # calling the uniform function by name
+fs = FunctionScaler("unif", downplay_outofbounds="upper")  # calling the uniform function by name
 #fs = FunctionScaler("gauss") # calling the normal function by name 
 #fs = FunctionScaler("gauss-11") # calling the normal function by name scaled such that it is mostly contained between -1 and 1
 #fs = FunctionScaler(TransformedFunction_Gauss(0,1)) # calling the normal function by class mean =0 sigma =1
-fs = FunctionScaler(np.array(range(1,1+n_points))/(1.+n_points) ) # calling the uniform function directly by inv_cdf value
+#fs = FunctionScaler([np.array(range(1,1+n_points))/(1.+n_points), np.array([1/(1.+n_points)*1/100. , 1 - (1 - n_points/(1.+n_points))*1/100.   ]   ]) # calling the uniform function directly by inv_cdf value
 
 
-if False:
+if True:
     # Testing 1 D operation
     mu, sigma  = 2., 0.5
     data = np.random.normal(mu, sigma, n_points)
@@ -24,7 +24,7 @@ if False:
     data_transf = fs.transform(data)
     data_invtransf = fs.invtransform(data_transf)
 
-    if True:
+    if False:
         # Testing standard 1 D operation
         count, bins, ignored = plt.hist(data, 30, normed=True, alpha= 0.5, color="blue")
         #plt.hist(data_transf, 30, normed=True)
@@ -33,19 +33,19 @@ if False:
 
 
 
-    if False:
+    if True:
         # Testing if data outside the trained range is handled correctly
-        extrapolated_data = [2, -4, 6]
+        extrapolated_data = [2, -50, 54]
         data_p_exp = np.append(extrapolated_data,data)
         data_p_exp_transf = fs.transform(data_p_exp)
         data_p_exp_invtransf = fs.invtransform(data_p_exp_transf)
 
-        #count, bins, ignored = plt.hist(data_p_exp, 30, normed=True)
+        count, bins, ignored = plt.hist(data_p_exp, 30, normed=True, alpha= 0.5, color="blue")
         #plt.hist(data_p_exp_transf, 30, normed=True)
-        count, bins, ignored = plt.hist(data_p_exp_invtransf, 30, normed=True)
+        count, bins, ignored = plt.hist(data_p_exp_invtransf, 30, normed=True, alpha= 0.5, color="red")
         #plt.plot(bins, 1/(sigma * np.sqrt(2 * np.pi)) * np.exp( - (bins - mu)**2 / (2 * sigma**2) ), linewidth=2, color='r')
 
-if True:
+if False:
     # Testing 1 D operation with 0 variance
     mu, sigma  = 2., 0.
     data = np.random.normal(mu, sigma, n_points-1)
@@ -64,7 +64,7 @@ if True:
 
 
 
-    if True:
+    if False:
         # Testing if data outside the trained range is handled correctly
         extrapolated_data = [20]
         print fs.transform(extrapolated_data)

@@ -12,23 +12,36 @@ class TransformedFunction:
 
 class TransformedFunction_Uniform(TransformedFunction):
 
-    def inv_cdf(self, n_points=100):
-        inv_cdf_points = np.array(range(1,1+n_points))/(1.+n_points)
-        return inv_cdf_points
+    def __init__(self, outofbounds_frac=0.01):
+        self.outofbounds_frac = outofbounds_frac
+
+    def inv_cdf(self, n_points=100, outofbounds_frac=0.01):
+        cdf_fractions =  np.array(range(1,1+n_points))/(1.+n_points)
+        inv_cdf_points = cdf_fractions
+        
+        cdf_fractions_outofbounds  = np.array([ cdf_fractions[0]*(1. - self.outofbounds_frac)   ,  cdf_fractions[-1]+ cdf_fractions[0]*self.outofbounds_frac])
+        inv_cdf_points_outofbounds = cdf_fractions_outofbounds
+        return [inv_cdf_points, inv_cdf_points_outofbounds]
 
 
 class TransformedFunction_Gauss(TransformedFunction):
 
-    def __init__(self, mean=0, std_dev=1):
+    def __init__(self, mean=0, std_dev=1, outofbounds_frac=0.01):
         self.mean    = mean
         self.std_dev = std_dev
+        self.outofbounds_frac = outofbounds_frac # The lower this is the more you flatten out the cdf equivalent curve and the more outofbounds points get downplayed as the most extreem SEEN example 
 
     def inv_cdf(self, n_points=100):
         # ppf is the inverse of cdf as shown by
         # norm.cdf(norm.ppf(0.95)) = 0.95
         # scipy.stats.norm.ppf = scipy.special.ndtri
-        inv_cdf_points = norm.ppf( np.array(range(1,1+n_points))/(1.+n_points), self.mean, self.std_dev  )
-        return inv_cdf_points
+        cdf_fractions =  np.array(range(1,1+n_points))/(1.+n_points)
+        inv_cdf_points = norm.ppf(cdf_fractions, self.mean, self.std_dev)
+
+        cdf_fractions_outofbounds  = np.array([ cdf_fractions[0]*(1. - self.outofbounds_frac)   ,  cdf_fractions[-1]+ cdf_fractions[0]*self.outofbounds_frac])        
+        inv_cdf_points_outofbounds = norm.ppf(cdf_fractions_outofbounds, self.mean, self.std_dev)
+        return [inv_cdf_points, inv_cdf_points_outofbounds]
+
 
 def name_to_TransformedFunction(name):
     if name=="gauss" or name=="normal": return TransformedFunction_Gauss()
@@ -63,7 +76,7 @@ def unique_mask(data):
     return mask
 
 class FunctionScaler:
-    def __init__(self, aTransformedFunction):
+    def __init__(self, aTransformedFunction, downplay_outofbounds = "not"):
         if isinstance(aTransformedFunction, TransformedFunction):
             self.aTransformedFunction = aTransformedFunction
         elif isinstance(aTransformedFunction, str):
@@ -71,21 +84,24 @@ class FunctionScaler:
         else:
             self.aTransformedFunction = aTransformedFunction
 
+        assert downplay_outofbounds in ["not", "both", "lower", "upper"] #if off outliers matter a lot, if on they are just treated as the most extreme example seen. it can be true for lower and/or upper tails
+        self.downplay_outofbounds = downplay_outofbounds
+
 
     def fit(self, data):
         data = np.array(data)
         if data.ndim ==1 : data =data.reshape(-1,1)
 
-        n_points = data.shape[0]
+        self.n_points = data.shape[0]
         self.n_feats   = data.shape[1]
 
         self.LearnedFunctions = []
         self.LearnedInvFunctions = []
 
         if isinstance(self.aTransformedFunction, TransformedFunction):
-            y = self.aTransformedFunction.inv_cdf(n_points)
+            y, y_outofbounds = self.aTransformedFunction.inv_cdf(self.n_points)
         else:
-            y = np.array(self.aTransformedFunction)
+            y, y_outofbounds = np.array(self.aTransformedFunction[0]), np.array(self.aTransformedFunction[1])
 
         for i_feats in range(self.n_feats):
 
@@ -94,9 +110,9 @@ class FunctionScaler:
             #data_1D_no_duplicates, y_no_duplicates = remove_duplicates(data_1D, y)
             #self.LearnedFunctions.append(interp1d( data_1D_no_duplicates , y_no_duplicates, kind='linear', fill_value="extrapolate"))
             #self.LearnedInvFunctions.append(interp1d( y_no_duplicates, data_1D_no_duplicates, kind='linear', fill_value="extrapolate"))
-            self.makeLearnedFunctions(data_1D, y)
+            self.makeLearnedFunctions(data_1D, y, y_outofbounds)
 
-    def makeLearnedFunctions(self, data, y):
+    def makeLearnedFunctions(self, data, y, y_outofbounds):
         #self.makeLearnedFunctions_mask(data_1D, y)        
         # data has to be sorted
         # when we get duplicates, use the "middle one"
@@ -144,6 +160,16 @@ class FunctionScaler:
                 last = d
 
 
+
+            if self.downplay_outofbounds in ["lower", "both"]: 
+                y_no_duplicates = np.r_[y_outofbounds[0], y_no_duplicates]
+                data_no_duplicates  = np.r_[ data_no_duplicates[0] + (data_no_duplicates[0]- data_no_duplicates[1])/(y_no_duplicates[1]-y_no_duplicates[0])/self.n_points , data_no_duplicates]  # Extrapolate from last point
+            if self.downplay_outofbounds in ["upper", "both"]: 
+                y_no_duplicates = np.r_[y_no_duplicates, y_outofbounds[1]]
+                data_no_duplicates  = np.r_[data_no_duplicates, data_no_duplicates[-1] + ( data_no_duplicates[-1]- data_no_duplicates[-2])/(y_no_duplicates[-1]-y_no_duplicates[-2])/self.n_points  ]  # Extrapolate from last point
+
+            #print "y_no_duplicates : ",  y_no_duplicates
+            #print "data_no_duplicates : ", data_no_duplicates 
             self.LearnedFunctions.append(interp1d( data_no_duplicates , y_no_duplicates, kind='linear', fill_value="extrapolate"))
             self.LearnedInvFunctions.append(interp1d( y_no_duplicates, data_no_duplicates, kind='linear', fill_value="extrapolate"))
 
