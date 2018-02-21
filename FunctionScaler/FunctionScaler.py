@@ -12,15 +12,17 @@ class TransformedFunction:
 
 class TransformedFunction_Uniform(TransformedFunction):
 
-    def __init__(self, outofbounds_frac=0.5):
+    def __init__(self, unif_min=0., unif_max=1., outofbounds_frac=0.5):
+        self.unif_min = unif_min
+        self.unif_max = unif_max
         self.outofbounds_frac = outofbounds_frac
 
     def inv_cdf(self, n_points=100):
         cdf_fractions =  np.array(range(1,1+n_points))/(1.+n_points)
-        inv_cdf_points = cdf_fractions
+        inv_cdf_points = self.unif_min + (self.unif_max-self.unif_min)*1.* cdf_fractions
         
         cdf_fractions_outofbounds  = np.array([ cdf_fractions[0]*(1. - self.outofbounds_frac)   ,  cdf_fractions[-1]+ cdf_fractions[0]*self.outofbounds_frac])
-        inv_cdf_points_outofbounds = cdf_fractions_outofbounds
+        inv_cdf_points_outofbounds = self.unif_min + (self.unif_max-self.unif_min)*1.*cdf_fractions_outofbounds
         return [inv_cdf_points, inv_cdf_points_outofbounds]
 
 

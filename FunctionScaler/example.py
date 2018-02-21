@@ -9,8 +9,8 @@ n_points = 100
 ### Testing different ways of initialising FunctionScaler
 
 #fs = FunctionScaler("unif", downplay_outofbounds_lower_n_range=2., downplay_outofbounds_upper_n_range=1.)  # calling the uniform function by name
-fs = FunctionScaler("unif", downplay_outofbounds_lower_n_range=2., downplay_outofbounds_upper_n_range=1., downplay_outofbounds_lower_set_point=-5.5, downplay_outofbounds_upper_set_point= 9.5)  # calling the uniform function by name
-
+#fs = FunctionScaler("unif", downplay_outofbounds_lower_n_range=2., downplay_outofbounds_upper_n_range=1., downplay_outofbounds_lower_set_point=-5.5, downplay_outofbounds_upper_set_point= 9.5)  # calling the uniform function by name
+fs = FunctionScaler(TransformedFunction_Uniform(-1.,3.))
 #fs = FunctionScaler("gauss") # calling the normal function by name 
 #fs = FunctionScaler("gauss-11") # calling the normal function by name scaled such that it is mostly contained between -1 and 1
 #fs = FunctionScaler(TransformedFunction_Gauss(0,1)) # calling the normal function by class mean =0 sigma =1
@@ -26,16 +26,16 @@ if True:
     data_transf = fs.transform(data)
     data_invtransf = fs.invtransform(data_transf)
 
-    if False:
+    if True:
         # Testing standard 1 D operation
-        count, bins, ignored = plt.hist(data, 30, normed=True, alpha= 0.5, color="blue")
-        #plt.hist(data_transf, 30, normed=True)
-        plt.hist(data_invtransf, bins, normed=True, alpha = 0.5, color = "red")
+        #count, bins, ignored = plt.hist(data, 30, normed=True, alpha= 0.5, color="blue")
+        plt.hist(data_transf, 30, normed=True)
+        #plt.hist(data_invtransf, bins, normed=True, alpha = 0.5, color = "red")
         #plt.plot(bins, 1/(sigma * np.sqrt(2 * np.pi)) * np.exp( - (bins - mu)**2 / (2 * sigma**2) ), linewidth=2, color='r')
 
 
 
-    if True:
+    if False:
         # Testing if data outside the trained range is handled correctly
         extrapolated_data = [2, -50, 54]
         data_p_exp = np.append(extrapolated_data,data)
