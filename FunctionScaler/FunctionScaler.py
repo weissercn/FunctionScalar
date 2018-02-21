@@ -214,8 +214,8 @@ class FunctionScaler:
                 data_no_duplicates  = np.r_[data_no_duplicates, data_no_duplicates[-1] + ( data_no_duplicates[-1]- data_no_duplicates[0])*self.downplay_outofbounds_upper_n_range[i_feats]  ]  # Extrapolate from last point
 
 
-            print "y_no_duplicates : ",  y_no_duplicates
-            print "data_no_duplicates : ", data_no_duplicates 
+            #print "y_no_duplicates : ",  y_no_duplicates
+            #print "data_no_duplicates : ", data_no_duplicates 
             self.LearnedFunctions.append(interp1d( data_no_duplicates , y_no_duplicates, kind='linear', fill_value="extrapolate"))
             self.LearnedInvFunctions.append(interp1d( y_no_duplicates, data_no_duplicates, kind='linear', fill_value="extrapolate"))
 

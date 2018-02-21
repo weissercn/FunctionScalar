@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='FunctionScaler',
-      version='0.6',
+      version='0.7',
       description='Given a discrete probability density function learn a function that turns samples from the pdf into samples from desired distribution.',
       url='https://github.com/weissercn/FunctionScaler',
       author='Constantin Weisser',
