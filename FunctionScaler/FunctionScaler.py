@@ -12,10 +12,10 @@ class TransformedFunction:
 
 class TransformedFunction_Uniform(TransformedFunction):
 
-    def __init__(self, outofbounds_frac=0.01):
+    def __init__(self, outofbounds_frac=0.5):
         self.outofbounds_frac = outofbounds_frac
 
-    def inv_cdf(self, n_points=100, outofbounds_frac=0.01):
+    def inv_cdf(self, n_points=100):
         cdf_fractions =  np.array(range(1,1+n_points))/(1.+n_points)
         inv_cdf_points = cdf_fractions
         
@@ -26,7 +26,7 @@ class TransformedFunction_Uniform(TransformedFunction):
 
 class TransformedFunction_Gauss(TransformedFunction):
 
-    def __init__(self, mean=0, std_dev=1, outofbounds_frac=0.01):
+    def __init__(self, mean=0, std_dev=1, outofbounds_frac=0.5):
         self.mean    = mean
         self.std_dev = std_dev
         self.outofbounds_frac = outofbounds_frac # The lower this is the more you flatten out the cdf equivalent curve and the more outofbounds points get downplayed as the most extreem SEEN example 
@@ -75,18 +75,30 @@ def unique_mask(data):
 
     return mask
 
+
+def aTransformedFunction_to_y(aTransformedFunction, n_points):
+    if isinstance(aTransformedFunction, str):
+        aTransformedFunction = name_to_TransformedFunction(aTransformedFunction)
+
+    if isinstance(aTransformedFunction, TransformedFunction):
+        y, y_outofbounds = aTransformedFunction.inv_cdf(n_points)
+    else:
+        y, y_outofbounds = np.array(aTransformedFunction[0]), np.array(aTransformedFunction[1])
+
+    return y, y_outofbounds
+
+
 class FunctionScaler:
-    def __init__(self, aTransformedFunction, downplay_outofbounds = "not"):
-        if isinstance(aTransformedFunction, TransformedFunction):
-            self.aTransformedFunction = aTransformedFunction
-        elif isinstance(aTransformedFunction, str):
-            self.aTransformedFunction = name_to_TransformedFunction(aTransformedFunction)
-        else:
-            self.aTransformedFunction = aTransformedFunction
+    def __init__(self, aTransformedFunction, downplay_outofbounds_lower_n_range = None, downplay_outofbounds_upper_n_range = None, downplay_outofbounds_lower_set_point = None, downplay_outofbounds_upper_set_point = None):
 
-        assert downplay_outofbounds in ["not", "both", "lower", "upper"] #if off outliers matter a lot, if on they are just treated as the most extreme example seen. it can be true for lower and/or upper tails
-        self.downplay_outofbounds = downplay_outofbounds
+        # downplay_outofbounds_lower_set_point overwrites downplay_outofbounds_lower_n_range
 
+        self.aTransformedFunction = aTransformedFunction
+        #assert downplay_outofbounds in ["not", "both", "lower", "upper"] #if off outliers matter a lot, if on they are just treated as the most extreme example seen. it can be true for lower and/or upper tails
+        self.downplay_outofbounds_lower_n_range   = downplay_outofbounds_lower_n_range
+        self.downplay_outofbounds_upper_n_range   = downplay_outofbounds_upper_n_range
+        self.downplay_outofbounds_lower_set_point = downplay_outofbounds_lower_set_point
+        self.downplay_outofbounds_upper_set_point = downplay_outofbounds_upper_set_point
 
     def fit(self, data):
         data = np.array(data)
@@ -95,24 +107,46 @@ class FunctionScaler:
         self.n_points = data.shape[0]
         self.n_feats   = data.shape[1]
 
+        y_allD, y_outofbounds_allD = None, None
+
+        if not isinstance(self.aTransformedFunction, list):
+            y_allD, y_outofbounds_allD = aTransformedFunction_to_y(self.aTransformedFunction, self.n_points)
+
+
+        if not isinstance(self.downplay_outofbounds_lower_n_range, list):
+            self.downplay_outofbounds_lower_n_range = [self.downplay_outofbounds_lower_n_range]*self.n_feats
+
+        if not isinstance(self.downplay_outofbounds_upper_n_range, list):
+            self.downplay_outofbounds_upper_n_range = [self.downplay_outofbounds_upper_n_range]*self.n_feats
+
+
+        if not isinstance(self.downplay_outofbounds_lower_set_point, list):
+            self.downplay_outofbounds_lower_set_point = [self.downplay_outofbounds_lower_set_point]*self.n_feats
+
+        if not isinstance(self.downplay_outofbounds_upper_set_point, list):
+            self.downplay_outofbounds_upper_set_point = [self.downplay_outofbounds_upper_set_point]*self.n_feats
+
+
         self.LearnedFunctions = []
         self.LearnedInvFunctions = []
 
-        if isinstance(self.aTransformedFunction, TransformedFunction):
-            y, y_outofbounds = self.aTransformedFunction.inv_cdf(self.n_points)
-        else:
-            y, y_outofbounds = np.array(self.aTransformedFunction[0]), np.array(self.aTransformedFunction[1])
 
         for i_feats in range(self.n_feats):
+
+            if y_allD is not None:
+                y, y_outofbounds = y_allD, y_outofbounds_allD
+            else:
+                y, y_outofbounds = aTransformedFunction_to_y(self.aTransformedFunction[i_feats], self.n_points)
+
 
             data_1D = np.sort(data[:,i_feats])
 
             #data_1D_no_duplicates, y_no_duplicates = remove_duplicates(data_1D, y)
             #self.LearnedFunctions.append(interp1d( data_1D_no_duplicates , y_no_duplicates, kind='linear', fill_value="extrapolate"))
             #self.LearnedInvFunctions.append(interp1d( y_no_duplicates, data_1D_no_duplicates, kind='linear', fill_value="extrapolate"))
-            self.makeLearnedFunctions(data_1D, y, y_outofbounds)
+            self.makeLearnedFunctions(data_1D, y, y_outofbounds, i_feats)
 
-    def makeLearnedFunctions(self, data, y, y_outofbounds):
+    def makeLearnedFunctions(self, data, y, y_outofbounds, i_feats):
         #self.makeLearnedFunctions_mask(data_1D, y)        
         # data has to be sorted
         # when we get duplicates, use the "middle one"
@@ -160,16 +194,28 @@ class FunctionScaler:
                 last = d
 
 
-
-            if self.downplay_outofbounds in ["lower", "both"]: 
+            if self.downplay_outofbounds_lower_set_point[i_feats] is not None:
                 y_no_duplicates = np.r_[y_outofbounds[0], y_no_duplicates]
-                data_no_duplicates  = np.r_[ data_no_duplicates[0] + (data_no_duplicates[0]- data_no_duplicates[1])/(y_no_duplicates[1]-y_no_duplicates[0])/self.n_points , data_no_duplicates]  # Extrapolate from last point
-            if self.downplay_outofbounds in ["upper", "both"]: 
-                y_no_duplicates = np.r_[y_no_duplicates, y_outofbounds[1]]
-                data_no_duplicates  = np.r_[data_no_duplicates, data_no_duplicates[-1] + ( data_no_duplicates[-1]- data_no_duplicates[-2])/(y_no_duplicates[-1]-y_no_duplicates[-2])/self.n_points  ]  # Extrapolate from last point
+                data_no_duplicates  = np.r_[ self.downplay_outofbounds_lower_set_point[i_feats] , data_no_duplicates]  
 
-            #print "y_no_duplicates : ",  y_no_duplicates
-            #print "data_no_duplicates : ", data_no_duplicates 
+            elif self.downplay_outofbounds_lower_n_range[i_feats] is not None: 
+                y_no_duplicates = np.r_[y_outofbounds[0], y_no_duplicates]
+                #data_no_duplicates  = np.r_[ data_no_duplicates[0] + (data_no_duplicates[0]- data_no_duplicates[1])/(y_no_duplicates[1]-y_no_duplicates[0])/self.n_points , data_no_duplicates]  # Extrapolate from last point
+                data_no_duplicates  = np.r_[ data_no_duplicates[0] - (data_no_duplicates[-1]- data_no_duplicates[0])*self.downplay_outofbounds_lower_n_range[i_feats] , data_no_duplicates]  # Extrapolate from last point
+
+
+            if self.downplay_outofbounds_upper_set_point[i_feats] is not None:
+                y_no_duplicates = np.r_[y_no_duplicates, y_outofbounds[1]]
+                data_no_duplicates  = np.r_[data_no_duplicates,  self.downplay_outofbounds_upper_set_point[i_feats] ]
+
+            elif self.downplay_outofbounds_upper_n_range[i_feats] is not None: 
+                y_no_duplicates = np.r_[y_no_duplicates, y_outofbounds[1]]
+                #data_no_duplicates  = np.r_[data_no_duplicates, data_no_duplicates[-1] + ( data_no_duplicates[-1]- data_no_duplicates[-2])/(y_no_duplicates[-1]-y_no_duplicates[-2])/self.n_points  ]  # Extrapolate from last point
+                data_no_duplicates  = np.r_[data_no_duplicates, data_no_duplicates[-1] + ( data_no_duplicates[-1]- data_no_duplicates[0])*self.downplay_outofbounds_upper_n_range[i_feats]  ]  # Extrapolate from last point
+
+
+            print "y_no_duplicates : ",  y_no_duplicates
+            print "data_no_duplicates : ", data_no_duplicates 
             self.LearnedFunctions.append(interp1d( data_no_duplicates , y_no_duplicates, kind='linear', fill_value="extrapolate"))
             self.LearnedInvFunctions.append(interp1d( y_no_duplicates, data_no_duplicates, kind='linear', fill_value="extrapolate"))
 
@@ -185,7 +231,7 @@ class FunctionScaler:
     def transform(self, data):
         data = np.array(data)
         if data.ndim ==1 : data = data.reshape(-1,1)
-
+        assert data.shape[1] == self.n_feats, "Need to have the same number of features as in training. data.shape[1] {}\t self.n_feats  {}".format(data.shape[1], self.n_feats) 
 
         for i_feats in range(self.n_feats):
             if i_feats == 0: data_trans = self.LearnedFunctions[i_feats](data[:, i_feats])
@@ -203,7 +249,7 @@ class FunctionScaler:
     def invtransform(self, data):
         data = np.array(data)
         if data.ndim ==1 : data = data.reshape(-1,1)
-
+        assert data.shape[1] == self.n_feats, "Need to have the same number of features as in training. data.shape[1] {}\t self.n_feats  {}".format(data.shape[1], self.n_feats)
 
         for i_feats in range(self.n_feats):
             if i_feats == 0: data_trans = self.LearnedInvFunctions[i_feats](data[:, i_feats])
