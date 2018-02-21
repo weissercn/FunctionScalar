@@ -45,8 +45,8 @@ class TransformedFunction_Gauss(TransformedFunction):
 
 def name_to_TransformedFunction(name):
     if name=="gauss" or name=="normal": return TransformedFunction_Gauss()
-    elif name=="gauss01" or name=="normal01": return TransformedFunction_Gauss(0.5,1./8.) #Gaussian between 0 and 1
-    elif name=="gauss-11" or name=="normal-11": return TransformedFunction_Gauss(0.,1./4.) #Gaussian between -1 and 1
+    elif name=="gauss01" or name=="normal01": return TransformedFunction_Gauss(0.5,1./12.) #Gaussian between 0 and 1
+    elif name=="gauss-11" or name=="normal-11": return TransformedFunction_Gauss(0.,1./6.) #Gaussian between -1 and 1
     elif name=="unif" or name=="uniform": return TransformedFunction_Uniform()
 
 
