@@ -6,7 +6,7 @@ class TransformedFunction:
     def __init__(self):
         pass
     def inv_cdf(self,n_points=100):
-        print "This should be implemented in the daughter class"
+        print ("This should be implemented in the daughter class")
         return None
 
 
